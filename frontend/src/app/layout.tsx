@@ -3,6 +3,7 @@ import { Public_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Navbar from "@/components/Navbar";
+import FilterBar from "@/components/FilterBar";
 
 const publicSans = Public_Sans({
   subsets: ["latin"],
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <Header />
         <Navbar />
+        <FilterBar />
         {children}
         </body>
     </html>
