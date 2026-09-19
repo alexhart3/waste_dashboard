@@ -430,6 +430,28 @@ input[type="date"].ctl {
   background: var(--crit-bg);
   color: var(--crit);
 }
+
+.fill {
+  position: relative;
+}
+
+.fill:hover {
+  filter: brightness(1.15);
+}
+
+.chart-tip {
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 12px));
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 50;
+}
  
 /* Contamination */
 .crate {
