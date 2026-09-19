@@ -35,5 +35,5 @@ export default function FilterBar() {
 
         <span className="fnote">Filters currently do not work for sprint 1.</span>
     </section>
-  );
+    );
 }

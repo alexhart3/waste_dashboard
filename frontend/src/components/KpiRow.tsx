@@ -1,4 +1,4 @@
-import KpiCard from "@/components/KpiCard";
+import KpiCard from "@/components/KpiCard"
 
 export default function KpiRow() {
     return (
@@ -9,5 +9,5 @@ export default function KpiRow() {
         <KpiCard label="Avg fullness" value="59" unit="%" sub="at time of collection" color="var(--ink-2)" />
         <KpiCard label="Contamination" value="25" unit="%" sub="40 contaminated pickups" color="var(--serious)" />
         </section>
-    )
+    );
 }
