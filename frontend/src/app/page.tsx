@@ -1,3 +1,4 @@
+import ContaminationRate from "@/components/ContaminationRate";
 import KpiRow from "@/components/KpiRow";
 import OverflowByBin from "@/components/OverflowByBin";
 import PickupsByLocation from "@/components/PickupsByLocation";
@@ -10,6 +11,7 @@ export default function Home() {
       <div className="grid">
         <PickupsByLocation />
         <OverflowByBin />
+        <ContaminationRate />
       </div>
     </>
   );
