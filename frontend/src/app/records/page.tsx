@@ -1,7 +1,16 @@
+import ChartCard from "@/components/ChartCard"
+import RecordsTable from "@/components/RecordsTable"
+
 export default function RecordsPage() {
     return (
-        <div>
-            <h1>Records Page Coming Soon</h1>
+        <div className="grid">
+            <ChartCard
+                title="Collection records"
+                subtitle="Every pickup submission, newest first"
+                wide
+            >
+                <RecordsTable />
+            </ChartCard>
         </div>
     )
 }
