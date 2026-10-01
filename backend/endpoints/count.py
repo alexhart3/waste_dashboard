@@ -29,7 +29,7 @@ async def get_entries(table: str, request: Request):
 
     try:
         response = query.execute()
-        return {"count" : response.count}
+        return {"count" : response.count if response.count else 0}
 
     except APIError as ex:
         raise HTTPException(
