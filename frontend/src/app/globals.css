@@ -251,6 +251,36 @@ input[type="date"].ctl {
   color: var(--muted);
   align-self: center;
 }
+.filter-summary {
+  flex: 1 1 190px;
+  text-align: right;
+  align-self: center;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.filter-reset {
+  min-height: 34px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  padding: 0 11px;
+  background: var(--surface-2);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.filter-reset:hover {
+  background: var(--accent-soft);
+}
+.empty-state {
+  padding: 18px 12px;
+  text-align: center;
+  color: var(--ink-2);
+}
+.chart-empty {
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+}
  
 /* KPI */
 .kpis {

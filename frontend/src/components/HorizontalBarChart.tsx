@@ -46,6 +46,8 @@ export default function HorizontalBarChart({
                 {hasExtra && <span style={{ textAlign: "right" }}>{extraHeader}</span>}
             </div>
 
+            {rows.length === 0 && <p className="empty-state chart-empty">No data matches these filters.</p>}
+
             {rows.map((row, i) => (
                 <div className={rowClass} key={i}>
                     <span className="bname">{row.label}</span>
