@@ -20,7 +20,12 @@ ALLOWED_FIELDS = {
         "fulfilled_at": int,
         "percent_full": int,
         "is_contamination": bool,
-        "additional_notes": str
+        "additional_notes": str,
+        "is_overflow": bool,
+        "driver_name": str,
+        "photo_url": str,
+        "service_status": str,
+        "container_size": str,
     },
 
     "dumpsters": {
@@ -34,7 +39,9 @@ ALLOWED_FIELDS = {
         "dumpster_id": str,
         "scheduled_at": int,
         "is_fulfilled": bool,
-        "form_id": str
+        "form_id": str,
+        "driver_name": str,
+        "container_size": str,
     }
 }
 
