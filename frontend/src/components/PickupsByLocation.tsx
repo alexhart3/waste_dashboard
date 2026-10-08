@@ -6,18 +6,9 @@ import StreamLegend from "./StreamLegend";
 import FullnessBadge from "./FullnessBadge";
 import SortButton from "./SortButton";
 import HorizontalBarChart, { BarRow } from "./HorizontalBarChart";
+import { useDashboardData } from "@/components/DashboardDataProvider";
 
-const buildings = [
-  { name: "The WELL",           landfill: 9, recycling: 19, compost: 0,  avgFullness: 37 },
-  { name: "University Union",   landfill: 6, recycling: 4,  compost: 15, avgFullness: 83 },
-  { name: "Library Quad",       landfill: 8, recycling: 6,  compost: 11, avgFullness: 79 },
-  { name: "University Library", landfill: 5, recycling: 11, compost: 7,  avgFullness: 57 },
-  { name: "Riverside Hall",     landfill: 7, recycling: 7,  compost: 9,  avgFullness: 34 },
-  { name: "Sequoia Hall",       landfill: 5, recycling: 8,  compost: 9,  avgFullness: 53 },
-  { name: "Mendocino Hall",     landfill: 9, recycling: 8,  compost: 0,  avgFullness: 72 },
-];
-
-type Building = (typeof buildings)[number];
+type Building = { name: string; landfill: number; recycling: number; compost: number; avgFullness: number };
 
 const total = (b: Building) => b.landfill + b.recycling + b.compost;
 
@@ -30,9 +21,33 @@ const SORTS = [
 ];
 
 export default function PickupsByLocation() {
+    const { filteredPickups } = useDashboardData();
     const [sortKey, setSortKey] = useState("pickups-desc");
     const sort = SORTS.find((s) => s.key === sortKey) ?? SORTS[0];
-    const sorted = [...buildings].sort(sort.compare);
+    const grouped = new Map<string, Building & { fullnessTotal: number; fullnessCount: number }>();
+    for (const pickup of filteredPickups) {
+        const building = grouped.get(pickup.building) ?? {
+            name: pickup.building,
+            landfill: 0,
+            recycling: 0,
+            compost: 0,
+            avgFullness: 0,
+            fullnessTotal: 0,
+            fullnessCount: 0,
+        };
+        building[pickup.stream.toLowerCase() as "landfill" | "recycling" | "compost"] += 1;
+        if (pickup.fullness !== null) {
+            building.fullnessTotal += pickup.fullness;
+            building.fullnessCount += 1;
+        }
+        grouped.set(pickup.building, building);
+    }
+    const sorted = [...grouped.values()]
+        .map(({ fullnessTotal, fullnessCount, ...building }) => ({
+            ...building,
+            avgFullness: fullnessCount ? Math.round(fullnessTotal / fullnessCount) : 0,
+        }))
+        .sort(sort.compare);
 
     const rows: BarRow[] = sorted.map((b) => ({
         label: b.name,
