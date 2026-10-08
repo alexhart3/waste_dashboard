@@ -19,6 +19,7 @@ type HorizontalBarChartProps = {
     labelHeader: string;
     valueHeader: string;
     extraHeader?: string;
+    initialVisibleRows?: number;
 };
 
 export default function HorizontalBarChart({
@@ -26,6 +27,7 @@ export default function HorizontalBarChart({
     labelHeader,
     valueHeader,
     extraHeader,
+    initialVisibleRows = 5,
 }: HorizontalBarChartProps) {
     const hasExtra = extraHeader !== undefined;
     const rowClass = hasExtra ? "brow" : "brow three";
@@ -36,6 +38,8 @@ export default function HorizontalBarChart({
         row.segments.reduce((sum, seg) => sum + seg.value, 0)
     );
     const max = Math.max(1, ...totals);
+    const [expanded, setExpanded] = useState(false);
+    const visibleRows = expanded ? rows : rows.slice(0, initialVisibleRows);
 
     return (
         <div className="blist">
@@ -48,7 +52,7 @@ export default function HorizontalBarChart({
 
             {rows.length === 0 && <p className="empty-state chart-empty">No data matches these filters.</p>}
 
-            {rows.map((row, i) => (
+            {visibleRows.map((row, i) => (
                 <div className={rowClass} key={i}>
                     <span className="bname">{row.label}</span>
 
@@ -71,6 +75,16 @@ export default function HorizontalBarChart({
                     {hasExtra && <span style={{ justifySelf: "end" }}>{row.extra}</span>}
                 </div>
             ))}
+            {rows.length > initialVisibleRows && (
+                <button
+                    className="chart-expand"
+                    type="button"
+                    aria-expanded={expanded}
+                    onClick={() => setExpanded((current) => !current)}
+                >
+                    {expanded ? `Show top ${initialVisibleRows}` : `Show all ${rows.length}`}
+                </button>
+            )}
             {tip && (
                 <div className="chart-tip" style={{ left: tip.x, top: tip.y }}>
                 {tip.text}

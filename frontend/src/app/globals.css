@@ -389,6 +389,28 @@ input[type="date"].ctl {
   flex-direction: column;
   gap: 10px;
 }
+.chart-expand {
+  align-self: flex-start;
+  min-height: 32px;
+  margin-top: 2px;
+  padding: 0 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chart-expand:hover {
+  border-color: var(--muted);
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+.chart-expand:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .brow {
   display: grid;
   grid-template-columns: minmax(110px, 170px) minmax(0, 1fr) 40px 70px;
