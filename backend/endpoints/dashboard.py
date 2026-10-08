@@ -30,19 +30,22 @@ def normalize_stream(value, dumpster_id=None):
     normalized = " ".join(value.strip().lower().replace("_", " ").replace("-", " ").split()) \
         if isinstance(value, str) else ""
 
-    if normalized in {"recycle", "recycling"} or "recycl" in normalized or "commingled" in normalized:
+    if any(term in normalized for term in ("recycl", "commingl", "single stream", "blue bin")):
         return "Recycling"
-    if normalized in {"compost", "compostable", "organics", "organic"} or any(
-        term in normalized for term in ("food waste", "green waste")
-    ):
+    if any(term in normalized for term in ("compost", "organic", "food waste", "green waste", "yard waste")):
         return "Compost"
-    if normalized in {"waste", "general waste", "landfill"} or any(
-        term in normalized for term in ("trash", "garbage", "refuse", "rubbish", "residual")
-    ):
+    if any(term in normalized for term in (
+        "landfill", "general waste", "solid waste", "municipal waste", "trash", "garbage",
+        "refuse", "rubbish", "residual", "non recyclable", "non-recyclable",
+    )) or normalized == "waste":
         return "Landfill"
 
     if isinstance(dumpster_id, str):
-        id_codes = {"L": "Landfill", "LF": "Landfill", "R": "Recycling", "REC": "Recycling", "C": "Compost", "CP": "Compost"}
+        id_codes = {
+            "L": "Landfill", "LF": "Landfill", "LANDFILL": "Landfill", "WASTE": "Landfill",
+            "R": "Recycling", "REC": "Recycling", "RECYCLE": "Recycling", "RECYCLING": "Recycling",
+            "C": "Compost", "CP": "Compost", "COMPOST": "Compost",
+        }
         for segment in dumpster_id.upper().replace("_", "-").split("-"):
             if segment in id_codes:
                 return id_codes[segment]
@@ -102,7 +105,7 @@ def get_dashboard_data():
             "building": clean_text(dumpster.get("building_group"), "Unknown building"),
             "binId": clean_text(row.get("dumpster_id"), "Unknown bin"),
             "stream": normalize_stream(dumpster.get("waste_type"), row.get("dumpster_id")),
-            "containerSize": clean_text(row.get("container_size"), clean_text(dumpster.get("bin_size"), "Unknown size")),
+            "containerSize": clean_text(dumpster.get("bin_size"), "Unknown size"),
             "fullness": int(fullness) if fullness is not None else None,
             "contaminated": bool(row.get("is_contamination")),
             "overflow": bool(row.get("is_overflow")),
@@ -130,7 +133,7 @@ def get_dashboard_data():
             "building": clean_text(dumpster.get("building_group"), "Unknown building"),
             "binId": clean_text(row.get("dumpster_id"), "Unknown bin"),
             "stream": normalize_stream(dumpster.get("waste_type"), row.get("dumpster_id")),
-            "containerSize": clean_text(row.get("container_size"), clean_text(dumpster.get("bin_size"), "Unknown size")),
+            "containerSize": clean_text(dumpster.get("bin_size"), "Unknown size"),
         })
 
     return {"pickups": pickups, "schedule": schedule}

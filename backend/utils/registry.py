@@ -25,7 +25,6 @@ ALLOWED_FIELDS = {
         "driver_name": str,
         "photo_url": str,
         "service_status": str,
-        "container_size": str,
     },
 
     "dumpsters": {
@@ -40,8 +39,6 @@ ALLOWED_FIELDS = {
         "scheduled_at": int,
         "is_fulfilled": bool,
         "form_id": str,
-        "driver_name": str,
-        "container_size": str,
     }
 }
 

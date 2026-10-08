@@ -1,20 +1,10 @@
 "use client";
 
-import { createContext, ReactNode, useContext, useMemo, useState } from "react";
+import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import dashboardData from "@/data/dashboardData.json";
-import { PickupRecord } from "@/types/pickup";
-
-export type ScheduleRecord = {
-    id: string;
-    scheduledAt: string;
-    pickupId: string | null;
-    fulfilled: boolean;
-    driver: string;
-    building: string;
-    binId: string;
-    stream: PickupRecord["stream"];
-    containerSize: string;
-};
+import { fetchDashboardData } from "@/lib/dashboardApi";
+import { DashboardPayload, ScheduleRecord } from "@/types/dashboard";
+import { PickupRecord, WasteStream } from "@/types/pickup";
 
 export type DashboardFilters = {
     startDate: string;
@@ -25,14 +15,13 @@ export type DashboardFilters = {
     stream: string;
 };
 
-const pickups = dashboardData.pickups as PickupRecord[];
-const schedule = dashboardData.schedule as ScheduleRecord[];
+const mockPayload = dashboardData as DashboardPayload;
 const dateOf = (value: string) => value.slice(0, 10);
-const dates = schedule.map((row) => dateOf(row.scheduledAt)).sort();
+const mockDates = mockPayload.schedule.map((row) => dateOf(row.scheduledAt)).sort();
 
 const defaultFilters: DashboardFilters = {
-    startDate: dates[0],
-    endDate: dates[dates.length - 1],
+    startDate: mockDates[0],
+    endDate: mockDates[mockDates.length - 1],
     containerSize: "",
     driver: "",
     building: "",
@@ -66,7 +55,35 @@ function matchesDetails(
 }
 
 export function DashboardDataProvider({ children }: { children: ReactNode }) {
+    const [payload, setPayload] = useState<DashboardPayload>(mockPayload);
     const [filters, setFilters] = useState(defaultFilters);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        fetchDashboardData(controller.signal)
+            .then((data) => {
+                setPayload(data);
+                const dataDates = [
+                    ...data.pickups.map((row) => dateOf(row.collectedAt)),
+                    ...data.schedule.map((row) => dateOf(row.scheduledAt)),
+                ].sort();
+                setFilters((current) => current.startDate === defaultFilters.startDate
+                    && current.endDate === defaultFilters.endDate
+                    ? {
+                        ...current,
+                        startDate: dataDates[0] ?? "",
+                        endDate: dataDates[dataDates.length - 1] ?? "",
+                    }
+                    : current,
+                );
+            })
+            .catch((error: unknown) => {
+                if (error instanceof DOMException && error.name === "AbortError") return;
+                console.warn("Dashboard API unavailable; continuing with local mock data.", error);
+            });
+
+        return () => controller.abort();
+    }, []);
 
     const value = useMemo<DashboardDataContextValue>(() => {
         const inDateRange = (date: string) => {
@@ -75,24 +92,36 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
                 && (!filters.endDate || day <= filters.endDate);
         };
 
+        const allRows = [...payload.pickups, ...payload.schedule];
+        const dates = allRows
+            .map((row) => "collectedAt" in row ? row.collectedAt : row.scheduledAt)
+            .map(dateOf)
+            .sort();
+
         return {
             filters,
             setFilters,
-            resetFilters: () => setFilters(defaultFilters),
-            filteredPickups: pickups.filter((row) =>
+            resetFilters: () => setFilters({
+                ...defaultFilters,
+                startDate: dates[0] ?? "",
+                endDate: dates[dates.length - 1] ?? "",
+            }),
+            filteredPickups: payload.pickups.filter((row) =>
                 inDateRange(row.collectedAt) && matchesDetails(row, filters),
             ),
-            filteredSchedule: schedule.filter((row) =>
+            filteredSchedule: payload.schedule.filter((row) =>
                 inDateRange(row.scheduledAt) && matchesDetails(row, filters),
             ),
             options: {
-                containerSizes: [...new Set(pickups.map((row) => row.containerSize))].sort(),
-                drivers: [...new Set(pickups.map((row) => row.driver))].sort(),
-                buildings: [...new Set(pickups.map((row) => row.building))].sort(),
-                streams: [...new Set(pickups.map((row) => row.stream))].sort(),
+                containerSizes: [...new Set(allRows.map((row) => row.containerSize))].sort(),
+                drivers: [...new Set(allRows.map((row) => row.driver))].sort(),
+                buildings: [...new Set(allRows.map((row) => row.building))].sort(),
+                // These are the dashboard's supported waste streams. Keep the
+                // filter complete even if a backend row contains an unrecognized label.
+                streams: ["Landfill", "Recycling", "Compost"] satisfies WasteStream[],
             },
         };
-    }, [filters]);
+    }, [payload, filters]);
 
     return <DashboardDataContext.Provider value={value}>{children}</DashboardDataContext.Provider>;
 }

@@ -1,11 +1,26 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import KpiCard from "@/components/KpiCard";
 import { useDashboardData } from "@/components/DashboardDataProvider";
 
 export default function KpiRow() {
     const { filteredPickups, filteredSchedule } = useDashboardData();
-    const missed = filteredSchedule.filter((service) => !service.fulfilled).length;
+    const [now, setNow] = useState<number | null>(null);
+
+    useEffect(() => {
+        const updateNow = () => setNow(Date.now());
+        updateNow();
+        const timer = window.setInterval(updateNow, 60_000);
+        return () => window.clearInterval(timer);
+    }, []);
+
+    const dueSchedule = now === null ? [] : filteredSchedule.filter((service) =>
+        new Date(service.scheduledAt).getTime() <= now,
+    );
+    const missed = dueSchedule.filter((service) =>
+        !service.fulfilled && !service.pickupId,
+    ).length;
     const fullnessValues = filteredPickups
         .map((pickup) => pickup.fullness)
         .filter((value): value is number => value !== null);
@@ -17,8 +32,8 @@ export default function KpiRow() {
     const contaminationRate = filteredPickups.length
         ? Math.round((contaminated / filteredPickups.length) * 100)
         : 0;
-    const missedRate = filteredSchedule.length
-        ? Math.round((missed / filteredSchedule.length) * 100)
+    const missedRate = dueSchedule.length
+        ? Math.round((missed / dueSchedule.length) * 100)
         : 0;
 
     return (
@@ -32,7 +47,7 @@ export default function KpiRow() {
             <KpiCard
                 label="Total missed"
                 value={String(missed)}
-                sub={`${missedRate}% of scheduled services`}
+                sub={`${missedRate}% of due scheduled services`}
                 color="var(--crit)"
             />
             <KpiCard
