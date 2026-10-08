@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from postgrest import APIError
+from postgrest import APIError, CountMethod
 from starlette.requests import Request
 
 from utils.registry import supabase
@@ -18,7 +18,7 @@ async def nothing():
 async def get_entries(table: str, request: Request):
     filters = build_where_clause(table, request)
 
-    query = supabase.table(table).select("*")
+    query = supabase.table(table).select("*", count=CountMethod.exact, head=True)
 
     for filter_data in filters:
         query = query.filter(
