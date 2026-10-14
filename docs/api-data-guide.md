@@ -1,5 +1,69 @@
 # Dashboard data derivation guide
 
+## Client sketch charts (October 2026)
+
+The overview has three rows: pickups by location and monthly costs; pickup
+trends and weekday fullness; overflow by bin and the contamination donut.
+The current frontend consumes `GET /dashboard/`, implemented in
+`backend/endpoints/dashboard.py`, returning joined `pickups` and `schedule`
+arrays. The older endpoint mapping below is historical context; the current
+dashboard endpoint already includes driver, overflow, and service-status fields.
+
+| Chart | Current source | Remaining infrastructure |
+| --- | --- | --- |
+| Pickup trend | `pickups.collectedAt`; due schedule rows with neither `fulfilled` nor `pickupId` | No new fields needed for the current definition. An explicit missed/cancelled status and service grace period would support more precise operational reporting. |
+| Weekday fullness | Average non-null `pickups.fullness`, grouped Monday–Sunday by `collectedAt` | No new fields needed for fullness **at collection**. Continuous daily bin fullness would require timestamped sensor readings or inspections. |
+| Contamination total | Count of `pickups.contaminated` divided by pickup count | Existing boolean supports frequency, not contaminated material mass or volume. |
+| Contaminant categories | **Frontend illustration**, deterministically allocated across flagged pickups | Capture a primary contaminant category per pickup, persist it, and return it in `/dashboard/`. |
+| Monthly costs | **Frontend illustration**, deterministic monthly amounts per building for 2024–2026 | Persist actual expenses and expose monthly totals by building and year. |
+
+### Filter and calculation rules
+
+- The sticky filter bar is the only location selector and controls the global
+  building filter. The contamination stream control shares the global stream
+  filter. Pickup, fullness, and contamination charts use all global filters.
+- Costs use only location and their own year selector. They deliberately ignore
+  the global date range, size, driver, and stream; this is stated on the card.
+  Campus costs sum the per-building sample amounts. The full year is illustrative,
+  including future months; these are not actuals or a forecast.
+- Dates and weekdays use UTC, consistent with current date filters and backend
+  timestamps. Pickup trends use daily buckets up to 45 days, seven-day buckets
+  anchored to the selected start date up to 180 days, then calendar months.
+- Occurred pickups are counted on collection dates. Missed services are counted
+  on scheduled dates only after they are due, using the browser's clock.
+  Therefore these are activity trends, not matched scheduled-service cohorts.
+- Fullness gives each recorded pickup equal weight. Null values are excluded,
+  zero is retained, and weekdays without readings have gaps, not fabricated zeros.
+- The contamination denominator is all filtered pickups. The donut's unflagged
+  portion and total flagged count use the payload. Its four material categories
+  are sample data and sum exactly to the flagged count.
+- Failed API requests retain the existing local demo payload. Per the requested
+  presentation, mock-data badges and API-source notices are omitted from the
+  interface; these limitations are documented here and communicated in chat.
+
+### Suggested contracts to replace the illustrations
+
+**Costs:** add expense records with an ID, building ID, accounting date or service
+month, amount in integer minor units, currency, expense category, and invoice or
+source reference. Define how campus-wide fees, credits, and shared services are
+allocated to buildings, and distinguish missing months from confirmed zero spend.
+Expose e.g. `GET /dashboard/costs?year=2026&building_id=...` with twelve monthly
+totals and data-completeness indicators. Replace `demoMonthlyCosts` in
+`frontend/src/lib/chartData.ts` after the endpoint exists.
+
+**Contaminants:** add a controlled category taxonomy and a primary category field
+to collection forms, storage, and the joined pickup response. Keep historical
+flagged pickups without a category in an explicit `Unknown` slice. If multiple
+categories are allowed per pickup, use a separate incidence chart rather than
+adding overlapping counts to this pie. Material-composition percentages would
+instead need measured weight or volume per category and a defined denominator.
+Replace `demoContaminants` only when those measurements or classifications exist.
+
+Calculation regression checks (Node 22.18+ with native TypeScript stripping):
+`node --test frontend/src/lib/__tests__/chartData.test.mjs`.
+
+## Earlier endpoint mapping
+
 This guide maps the labels in the dashboard mockup (`A` through `J`) to the
 current API. The deployed base URL is:
 

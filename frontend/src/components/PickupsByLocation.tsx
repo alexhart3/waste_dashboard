@@ -76,6 +76,7 @@ export default function PickupsByLocation() {
                 extraHeader="Avg full"
                 rows={rows}
             />
+            <p className="chart-note">Compare pickups by building. Hover over a color to see its waste stream count.</p>
         </ChartCard>
     );
 }

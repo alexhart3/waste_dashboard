@@ -29,6 +29,7 @@ const defaultFilters: DashboardFilters = {
 };
 
 type DashboardDataContextValue = {
+    dataSource: "loading" | "api" | "demo";
     filters: DashboardFilters;
     setFilters: (filters: DashboardFilters) => void;
     resetFilters: () => void;
@@ -56,6 +57,7 @@ function matchesDetails(
 
 export function DashboardDataProvider({ children }: { children: ReactNode }) {
     const [payload, setPayload] = useState<DashboardPayload>(mockPayload);
+    const [dataSource, setDataSource] = useState<"loading" | "api" | "demo">("loading");
     const [filters, setFilters] = useState(defaultFilters);
 
     useEffect(() => {
@@ -63,6 +65,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         fetchDashboardData(controller.signal)
             .then((data) => {
                 setPayload(data);
+                setDataSource("api");
                 const dataDates = [
                     ...data.pickups.map((row) => dateOf(row.collectedAt)),
                     ...data.schedule.map((row) => dateOf(row.scheduledAt)),
@@ -79,6 +82,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
             })
             .catch((error: unknown) => {
                 if (error instanceof DOMException && error.name === "AbortError") return;
+                setDataSource("demo");
                 console.warn("Dashboard API unavailable; continuing with local mock data.", error);
             });
 
@@ -99,6 +103,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
             .sort();
 
         return {
+            dataSource,
             filters,
             setFilters,
             resetFilters: () => setFilters({
@@ -121,7 +126,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
                 streams: ["Landfill", "Recycling", "Compost"] satisfies WasteStream[],
             },
         };
-    }, [payload, filters]);
+    }, [payload, filters, dataSource]);
 
     return <DashboardDataContext.Provider value={value}>{children}</DashboardDataContext.Provider>;
 }

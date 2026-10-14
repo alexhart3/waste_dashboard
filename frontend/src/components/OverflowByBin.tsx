@@ -41,6 +41,7 @@ export default function OverflowByBin() {
             right={<SortButton options={SORTS} value={sortKey} onChange={setSortKey} />}
         >
             <HorizontalBarChart labelHeader="Building – Bin ID" valueHeader="Overflows" rows={rows} />
+            <p className="chart-note">See which bins overflow most often. Hover over a bar to see the count.</p>
         </ChartCard>
     );
 }
