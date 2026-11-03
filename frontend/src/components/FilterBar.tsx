@@ -62,8 +62,10 @@ export default function FilterBar() {
       <span className="filter-summary" aria-live="polite">
         {filteredPickups.length} pickups · {filteredSchedule.length} scheduled services
       </span>
-      <button className="filter-reset" type="button" onClick={resetFilters}>Reset filters</button>
-      <ExportButton />
+      <div className="filter-actions">
+        <button className="filter-reset" type="button" onClick={resetFilters}>Reset filters</button>
+        <ExportButton />
+      </div>
     </section>
   );
 }

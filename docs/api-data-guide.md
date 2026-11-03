@@ -53,6 +53,34 @@ Bearer token. Missing, invalid, and expired sessions receive HTTP 401 before
 querying Supabase. Responses use `Cache-Control: no-store`. API docs support
 the Bearer scheme through their **Authorize** control.
 
+## Exporting pickup reports
+
+Signed-in administrators can select **Export CSV** in the sticky filter bar on
+either the dashboard or records page. It exports all matching pickup records,
+newest first, using the selected dates, location, waste stream, driver, and
+container size. The button is disabled when no pickups match.
+
+The export checks the administrator session with FastAPI before creating the
+download. Signing out during that check cancels it. Invalid/expired sessions
+return to sign-in; connection failures show a retry message without exporting.
+
+CSV columns: pickup ID, collection timestamp (explicitly UTC), driver, location,
+bin ID, waste stream, container size, fullness percentage, contamination flag,
+primary contaminant, overflow flag, service status, and photo URL. Missing
+fullness stays blank and zero stays 0. Photo links are included rather than
+embedding image files. Costs and unfulfilled schedule rows are not included
+in this pickup report.
+
+Files include the location and date range in their name. CSV quoting preserves
+commas, quotes, and line breaks; UTF-8 with a BOM preserves Unicode in Excel.
+Text that could be interpreted as a spreadsheet formula is prefixed with an
+apostrophe. Downloads are created from the already-authorized filtered data;
+no new database table or export storage is needed.
+
+Regression checks: `node --test frontend/src/lib/__tests__/exportCsv.test.mjs`.
+Browser verification confirmed a Library export contains exactly the 14
+displayed pickups, with 13 columns and matching date/location filters.
+
 ## Chart sources
 
 | Chart | Database source | Calculation |
