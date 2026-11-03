@@ -53,7 +53,7 @@ export default function KpiRow() {
             <KpiCard
                 label="Under 50% full"
                 value={String(underHalf)}
-                sub={`${filteredPickups.length ? Math.round((underHalf / filteredPickups.length) * 100) : 0}% of pickups with fullness recorded`}
+                sub={`${fullnessValues.length ? Math.round((underHalf / fullnessValues.length) * 100) : 0}% of pickups with fullness recorded`}
                 color="var(--warn)"
             />
             <KpiCard

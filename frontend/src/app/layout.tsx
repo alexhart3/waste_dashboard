@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Public_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/Header";
+import AuthGate from "@/components/AuthGate";
 import Navbar from "@/components/Navbar";
 import FilterBar from "@/components/FilterBar";
 import { DashboardDataProvider } from "@/components/DashboardDataProvider";
@@ -29,12 +29,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${publicSans.variable} ${plexMono.variable}`}
     >
       <body className="min-h-full flex flex-col">
-        <Header />
+        <AuthGate>
         <Navbar />
         <DashboardDataProvider>
           <FilterBar />
           {children}
         </DashboardDataProvider>
+        </AuthGate>
         </body>
     </html>
   );

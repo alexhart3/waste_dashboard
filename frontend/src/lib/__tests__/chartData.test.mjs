@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { pickupTrend, weekdayFullness, demoMonthlyCosts, demoContaminants } from '../chartData.ts';
+import { pickupTrend, weekdayFullness, monthlyCosts, contaminantBreakdown } from '../chartData.ts';
 
 const pickup = (collectedAt, fullness = 50, extras = {}) => ({ id: collectedAt, collectedAt, fullness, contaminated: false, ...extras });
 const service = (scheduledAt, extras = {}) => ({ scheduledAt, fulfilled: false, pickupId: null, ...extras });
@@ -38,17 +38,28 @@ test('weekday fullness uses UTC, excludes nulls, retains zero, and leaves absent
     assert.equal(points[0].detail, 'Mon · 2 readings');
 });
 
-test('illustrative campus cost equals sum of building costs and changes by year', () => {
-    const campus = demoMonthlyCosts(['Library', 'Union'], 2026);
-    const library = demoMonthlyCosts(['Library'], 2026);
-    const union = demoMonthlyCosts(['Union'], 2026);
-    campus.forEach((point, index) => assert.equal(point.values[0], library[index].values[0] + union[index].values[0]));
-    assert.notDeepEqual(campus, demoMonthlyCosts(['Library', 'Union'], 2025));
+test('stored costs sum cents by year and building, retaining zero and missing months', () => {
+    const records = [
+        { building: 'Library', month: '2026-01-01', amountCents: 10101 },
+        { building: 'Library', month: '2026-01-01', amountCents: 20202 },
+        { building: 'Union', month: '2026-01-01', amountCents: 30000 },
+        { building: 'Library', month: '2026-02-01', amountCents: 0 },
+        { building: 'Library', month: '2025-01-01', amountCents: 99999 },
+    ];
+    assert.equal(monthlyCosts(records, 2026)[0].values[0], 603.03);
+    assert.deepEqual(monthlyCosts(records, 2026, 'Library').slice(0, 3).map(p => p.values[0]), [303.03, 0, null]);
+    assert.equal(monthlyCosts(records, 2025)[0].values[0], 999.99);
+    assert.ok(monthlyCosts(records, 2026, 'Missing').every(p => p.values[0] === null));
 });
 
-test('sample contaminant counts reconcile exactly and stay stable under filtering', () => {
-    const records = Array.from({length: 20}, (_, i) => pickup(String(i), 50, { contaminated: i % 3 === 0 }));
-    assert.equal(demoContaminants(records).reduce((sum, row) => sum + row.value, 0), 7);
-    assert.deepEqual(demoContaminants(records), demoContaminants(records.filter(p => p.contaminated)));
-    assert.equal(demoContaminants([]).reduce((sum, row) => sum + row.value, 0), 0);
+test('contaminants use stored categories, retain unknowns, and exclude unflagged pickups', () => {
+    const records = [
+        pickup('1', 50, { contaminated: true, contaminationCategory: 'Plastic film' }),
+        pickup('2', 50, { contaminated: true, contaminationCategory: 'Plastic film' }),
+        pickup('3', 50, { contaminated: true, contaminationCategory: null }),
+        pickup('4', 50, { contaminated: false, contaminationCategory: 'Food / liquids' }),
+    ];
+    assert.deepEqual(contaminantBreakdown(records), [{ label: 'Plastic film', value: 2 }, { label: 'Unknown', value: 1 }]);
+    assert.deepEqual(contaminantBreakdown(records.slice(1, 2)), [{ label: 'Plastic film', value: 1 }]);
+    assert.deepEqual(contaminantBreakdown([]), []);
 });

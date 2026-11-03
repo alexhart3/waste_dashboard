@@ -12,6 +12,7 @@ export type PickupRecord = {
     containerSize: string;
     fullness: number | null;
     contaminated: boolean;
+    contaminationCategory: string | null;
     overflow: boolean;
     status: ServiceStatus;
 };

@@ -60,31 +60,33 @@ def pickup_public_id(form_id):
     return value
 
 
-def schedule_public_id(form_id, index):
-    value = str(form_id) if form_id is not None else ""
-    prefix, separator, suffix = value.rpartition("-")
-    if separator and suffix.isdigit():
-        number = int(suffix)
-        if prefix == "DEMO-FORM":
-            return f"SC-{number + 4000}"
-        if prefix == "DEMO-MISSED":
-            return f"SC-{number + 5000}"
-    return value or f"SC-{5001 + index}"
+def fetch_all_rows(table, order_column):
+    """Read every page, including when the server caps pages below our limit."""
+    rows = []
+    while True:
+        page = supabase.table(table).select("*").order(order_column).range(len(rows), len(rows) + 999).execute().data
+        if not page:
+            return rows
+        rows.extend(page)
 
 
 def get_dashboard_data():
     try:
-        pickups_result = supabase.table("fulfilled_pickups").select("*").order("form_id").execute()
-        dumpsters_result = supabase.table("dumpsters").select("*").order("id").execute()
-        schedule_result = supabase.table("pickup_schedule_entries").select("*").order("form_id").execute()
-    except APIError as ex:
-        raise HTTPException(status_code=502, detail=f"Database query failed: {ex}")
-    except Exception as ex:
+        pickup_data = fetch_all_rows("fulfilled_pickups", "form_id")
+        dumpster_data = fetch_all_rows("dumpsters", "id")
+        schedule_data = fetch_all_rows("pickup_schedule_entries", "id")
+        category_data = fetch_all_rows("contamination_categories", "id")
+        cost_data = fetch_all_rows("collection_costs", "id")
+    except APIError:
+        logger.exception("Dashboard database query failed")
+        raise HTTPException(status_code=502, detail="Dashboard database query failed")
+    except Exception:
         logger.exception("Dashboard query could not connect to Supabase")
-        raise HTTPException(status_code=502, detail=f"Database connection failed: {ex}")
+        raise HTTPException(status_code=502, detail="Dashboard database connection failed")
 
-    dumpsters = {row.get("id"): row for row in dumpsters_result.data if row.get("id")}
-    pickup_rows = [row for row in pickups_result.data if row.get("form_id")]
+    dumpsters = {row.get("id"): row for row in dumpster_data if row.get("id")}
+    categories = {row["id"]: row["label"] for row in category_data}
+    pickup_rows = [row for row in pickup_data if row.get("form_id")]
     pickup_by_form_id = {str(row["form_id"]): row for row in pickup_rows}
 
     def dumpster_for(row):
@@ -108,12 +110,13 @@ def get_dashboard_data():
             "containerSize": clean_text(dumpster.get("bin_size"), "Unknown size"),
             "fullness": int(fullness) if fullness is not None else None,
             "contaminated": bool(row.get("is_contamination")),
+            "contaminationCategory": categories.get(row.get("contamination_category_id")) if row.get("is_contamination") else None,
             "overflow": bool(row.get("is_overflow")),
             "status": row.get("service_status") if row.get("service_status") in {"Completed", "Delayed", "Incomplete", "Missed"} else "Completed",
         })
 
     schedule = []
-    for index, row in enumerate(schedule_result.data):
+    for index, row in enumerate(schedule_data):
         scheduled_at = timestamp_to_iso(row.get("scheduled_at"))
         if scheduled_at is None:
             raise HTTPException(status_code=422, detail=f"Schedule row {index + 1} has no scheduled_at timestamp")
@@ -122,7 +125,7 @@ def get_dashboard_data():
         dumpster = dumpster_for(row)
         is_fulfilled = row.get("is_fulfilled")
         schedule.append({
-            "id": schedule_public_id(form_id, index),
+            "id": f"SC-{row['id']}",
             "scheduledAt": scheduled_at,
             "pickupId": pickup_public_id(form_id) if matched_pickup else None,
             "fulfilled": bool(is_fulfilled) if is_fulfilled is not None else matched_pickup is not None,
@@ -136,7 +139,14 @@ def get_dashboard_data():
             "containerSize": clean_text(dumpster.get("bin_size"), "Unknown size"),
         })
 
-    return {"pickups": pickups, "schedule": schedule}
+    costs = [{
+        "id": row["id"],
+        "building": row["building_group"],
+        "month": row["cost_month"],
+        "amountCents": row["amount_cents"],
+        "currency": row["currency"],
+    } for row in cost_data]
+    return {"pickups": pickups, "schedule": schedule, "costs": costs}
 
 
 @router.get("")

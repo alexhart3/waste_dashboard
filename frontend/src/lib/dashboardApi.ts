@@ -1,7 +1,7 @@
 import type { DashboardPayload } from "@/types/dashboard";
 import type { WasteStream } from "@/types/pickup";
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
+import { API_BASE_URL, SignInRequiredError } from "./authApi";
 
 function normalizeStream(stream: unknown, binId: unknown): WasteStream | null {
     const label = typeof stream === "string" ? stream.trim().toLowerCase() : "";
@@ -30,15 +30,18 @@ function normalizePayloadStreams(payload: DashboardPayload): DashboardPayload {
     return {
         pickups: payload.pickups.map(normalizeRow),
         schedule: payload.schedule.map(normalizeRow),
+        costs: payload.costs,
     };
 }
 
-export async function fetchDashboardData(signal?: AbortSignal): Promise<DashboardPayload> {
+export async function fetchDashboardData(token: string, signal?: AbortSignal): Promise<DashboardPayload> {
     const response = await fetch(`${API_BASE_URL}/dashboard/`, {
         signal,
+        headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
     });
 
+    if (response.status === 401) throw new SignInRequiredError("Please sign in again.");
     if (!response.ok) {
         const detail = await response.text();
         throw new Error(`Dashboard API returned ${response.status}${detail ? `: ${detail}` : ""}`);
@@ -50,8 +53,9 @@ export async function fetchDashboardData(signal?: AbortSignal): Promise<Dashboar
         || typeof payload !== "object"
         || !Array.isArray((payload as DashboardPayload).pickups)
         || !Array.isArray((payload as DashboardPayload).schedule)
+        || !Array.isArray((payload as DashboardPayload).costs)
     ) {
-        throw new Error("Dashboard API response must contain pickups and schedule arrays.");
+        throw new Error("Dashboard API response must contain pickups, schedule, and costs arrays.");
     }
 
     return normalizePayloadStreams(payload as DashboardPayload);

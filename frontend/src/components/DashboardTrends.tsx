@@ -8,7 +8,7 @@ import OverflowByBin from "./OverflowByBin";
 import ChartTooltip, { useChartTooltip } from "./ChartTooltip";
 import TrendPlot, { formatChartValue } from "./TrendPlot";
 import { useDashboardData } from "./DashboardDataProvider";
-import { DEMO_COST_YEARS, demoContaminants, demoMonthlyCosts, pickupTrend, weekdayFullness } from "@/lib/chartData";
+import { contaminantBreakdown, monthlyCosts, pickupTrend, weekdayFullness } from "@/lib/chartData";
 
 function PickupTrend() {
     const { filteredPickups, filteredSchedule, filters } = useDashboardData();
@@ -29,19 +29,20 @@ function PickupTrend() {
 }
 
 function CampusCosts() {
-    const { filters, options } = useDashboardData();
-    const [year, setYear] = useState(2026);
-    const buildings = filters.building ? [filters.building] : options.buildings;
-    const points = demoMonthlyCosts(buildings, year);
+    const { filters, options, costs } = useDashboardData();
+    const [selectedYear, setYear] = useState<number | null>(null);
+    const year = selectedYear ?? options.costYears[0] ?? 0;
+    const points = monthlyCosts(costs, year, filters.building);
     const total = points.reduce((sum, point) => sum + (point.values[0] ?? 0), 0);
-    return <ChartCard title="Monthly collection costs" subtitle={`${filters.building || "Campus total"} · ${formatChartValue(total, "currency")} annual total`} right={
+    return <ChartCard title="Monthly collection costs" subtitle={`${filters.building || "Campus total"} · ${formatChartValue(total, "currency")} recorded total`} right={
         <div className="card-tools">
-            <div className="fgroup"><label className="lbl" htmlFor="cost-year">Year</label><select id="cost-year" className="ctl" value={year} onChange={(event) => setYear(Number(event.target.value))}>
-                {DEMO_COST_YEARS.map((value) => <option key={value}>{value}</option>)}
+            <div className="fgroup"><label className="lbl" htmlFor="cost-year">Year</label><select id="cost-year" className="ctl" value={year} disabled={!options.costYears.length} onChange={(event) => setYear(Number(event.target.value))}>
+                {!options.costYears.length && <option value={0}>No years</option>}
+                {options.costYears.map((value) => <option key={value}>{value}</option>)}
             </select></div>
         </div>
     }>
-        {buildings.length ? <TrendPlot title={`Monthly collection costs, ${year}`} points={points} series={[{ label: "Monthly spend (USD)", color: "var(--lf)" }]} unit="currency" bars /> : <EmptyChart />}
+        {points.some((point) => point.values[0] !== null) ? <TrendPlot title={`Monthly collection costs, ${year}`} points={points} series={[{ label: "Monthly spend (USD)", color: "var(--lf)" }]} unit="currency" bars /> : <EmptyChart message="No costs match this location and year." />}
         <p className="chart-note">Uses the location filter above and the year selected here.</p>
     </ChartCard>;
 }
@@ -63,7 +64,7 @@ function ContaminationComposition() {
     const rate = total ? Math.round(contaminated / total * 100) : 0;
     const slices = [
         { label: "Not flagged", value: total - contaminated, color: "var(--cp)" },
-        ...demoContaminants(filteredPickups).map((item, index) => ({ ...item, color: ["var(--crit)", "var(--serious)", "var(--lf)", "var(--rc)"][index] })),
+        ...contaminantBreakdown(filteredPickups).map((item) => ({ ...item, color: ({ "Food / liquids": "var(--crit)", "Plastic film": "var(--serious)", "Wrong-stream items": "var(--lf)", "Other materials": "var(--rc)" } as Record<string, string>)[item.label] ?? "var(--muted)" })),
     ];
     const selected = tip ? slices.find((slice) => slice.label === tip.key) : undefined;
     let offset = 0;

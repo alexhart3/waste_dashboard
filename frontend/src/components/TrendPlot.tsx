@@ -8,8 +8,8 @@ export type ChartSeries = { label: string; color: string; dashed?: boolean };
 type Props = { title: string; points: ChartPoint[]; series: ChartSeries[]; unit?: "count" | "percent" | "currency"; bars?: boolean };
 
 export function formatChartValue(value: number | null, unit: Props["unit"] = "count") {
-    if (value === null) return "No readings";
-    if (unit === "currency") return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+    if (value === null) return "No data";
+    if (unit === "currency") return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value);
     return `${Number.isInteger(value) ? value : value.toFixed(1)}${unit === "percent" ? "%" : ""}`;
 }
 

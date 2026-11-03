@@ -1,5 +1,5 @@
 import type { PickupRecord } from "../types/pickup";
-import type { ScheduleRecord } from "../types/dashboard";
+import type { CollectionCostRecord, ScheduleRecord } from "../types/dashboard";
 
 export type ChartPoint = { label: string; detail: string; values: (number | null)[] };
 const DAY = 86_400_000;
@@ -47,24 +47,27 @@ export function weekdayFullness(pickups: PickupRecord[]): ChartPoint[] {
     });
 }
 
-// Illustrative monthly expenses only. Never infer real expenditure from pickup counts.
-export const DEMO_COST_YEARS = [2024, 2025, 2026];
-export function demoMonthlyCosts(buildings: string[], year: number): ChartPoint[] {
+// Sum stored cents before converting to dollars. Missing months stay blank.
+export function monthlyCosts(costs: CollectionCostRecord[], year: number, building = ""): ChartPoint[] {
+    const totals = new Map<number, number>();
+    for (const cost of costs) {
+        if (Number(cost.month.slice(0, 4)) !== year || (building && cost.building !== building)) continue;
+        const month = Number(cost.month.slice(5, 7)) - 1;
+        totals.set(month, (totals.get(month) ?? 0) + cost.amountCents);
+    }
     return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((label, month) => ({
         label, detail: `${label} ${year}`,
-        values: [buildings.reduce((sum, building) => {
-            const seed = [...building].reduce((n, c) => n + c.charCodeAt(0), 0);
-            return sum + Math.round((650 + seed % 950) * [1.02, .94, 1.08, 1.06, .98, .74, .69, .92, 1.16, 1.12, 1.03, .82][month] * (1 + (year - 2024) * .045));
-        }, 0)],
+        values: [totals.has(month) ? totals.get(month)! / 100 : null],
     }));
 }
 
-// One illustrative primary contaminant per flagged pickup; counts reconcile to the real flag total.
-export function demoContaminants(pickups: PickupRecord[]) {
-    const counts = [0, 0, 0, 0];
-    for (const pickup of pickups.filter((p) => p.contaminated)) {
-        const seed = [...pickup.id].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 0);
-        counts[seed % counts.length]++;
+// One primary category per flagged pickup keeps the pie slices non-overlapping.
+export function contaminantBreakdown(pickups: PickupRecord[]) {
+    const counts = new Map<string, number>();
+    for (const pickup of pickups) {
+        if (!pickup.contaminated) continue;
+        const category = pickup.contaminationCategory?.trim() || "Unknown";
+        counts.set(category, (counts.get(category) ?? 0) + 1);
     }
-    return ["Food / liquids", "Plastic film", "Wrong-stream items", "Other materials"].map((label, i) => ({ label, value: counts[i] }));
+    return [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([label, value]) => ({ label, value }));
 }

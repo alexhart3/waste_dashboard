@@ -12,7 +12,16 @@ export type ScheduleRecord = {
     containerSize: string;
 };
 
+export type CollectionCostRecord = {
+    id: string;
+    building: string;
+    month: string;
+    amountCents: number;
+    currency: "USD";
+};
+
 export type DashboardPayload = {
     pickups: PickupRecord[];
     schedule: ScheduleRecord[];
+    costs: CollectionCostRecord[];
 };

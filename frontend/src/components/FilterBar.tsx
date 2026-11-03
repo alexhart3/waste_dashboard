@@ -2,6 +2,7 @@
 
 import FilterSelect from "@/components/FilterSelect";
 import { useDashboardData } from "@/components/DashboardDataProvider";
+import ExportButton from "./ExportButton";
 
 export default function FilterBar() {
   const { filters, setFilters, resetFilters, options, filteredPickups, filteredSchedule } = useDashboardData();
@@ -62,6 +63,7 @@ export default function FilterBar() {
         {filteredPickups.length} pickups · {filteredSchedule.length} scheduled services
       </span>
       <button className="filter-reset" type="button" onClick={resetFilters}>Reset filters</button>
+      <ExportButton />
     </section>
   );
 }

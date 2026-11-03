@@ -1,10 +1,11 @@
 "use client";
 
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
-import dashboardData from "@/data/dashboardData.json";
 import { fetchDashboardData } from "@/lib/dashboardApi";
-import { DashboardPayload, ScheduleRecord } from "@/types/dashboard";
+import { CollectionCostRecord, DashboardPayload, ScheduleRecord } from "@/types/dashboard";
 import { PickupRecord, WasteStream } from "@/types/pickup";
+import { useAuth } from "./AuthGate";
+import { SignInRequiredError } from "@/lib/authApi";
 
 export type DashboardFilters = {
     startDate: string;
@@ -15,13 +16,12 @@ export type DashboardFilters = {
     stream: string;
 };
 
-const mockPayload = dashboardData as DashboardPayload;
+const emptyPayload: DashboardPayload = { pickups: [], schedule: [], costs: [] };
 const dateOf = (value: string) => value.slice(0, 10);
-const mockDates = mockPayload.schedule.map((row) => dateOf(row.scheduledAt)).sort();
 
 const defaultFilters: DashboardFilters = {
-    startDate: mockDates[0],
-    endDate: mockDates[mockDates.length - 1],
+    startDate: "",
+    endDate: "",
     containerSize: "",
     driver: "",
     building: "",
@@ -29,17 +29,19 @@ const defaultFilters: DashboardFilters = {
 };
 
 type DashboardDataContextValue = {
-    dataSource: "loading" | "api" | "demo";
+    dataSource: "loading" | "api" | "error";
     filters: DashboardFilters;
     setFilters: (filters: DashboardFilters) => void;
     resetFilters: () => void;
     filteredPickups: PickupRecord[];
     filteredSchedule: ScheduleRecord[];
+    costs: CollectionCostRecord[];
     options: {
         containerSizes: string[];
         drivers: string[];
         buildings: string[];
         streams: string[];
+        costYears: number[];
     };
 };
 
@@ -56,13 +58,15 @@ function matchesDetails(
 }
 
 export function DashboardDataProvider({ children }: { children: ReactNode }) {
-    const [payload, setPayload] = useState<DashboardPayload>(mockPayload);
-    const [dataSource, setDataSource] = useState<"loading" | "api" | "demo">("loading");
+    const { token, signOut } = useAuth();
+    const [payload, setPayload] = useState<DashboardPayload>(emptyPayload);
+    const [dataSource, setDataSource] = useState<"loading" | "api" | "error">("loading");
     const [filters, setFilters] = useState(defaultFilters);
+    const [attempt, setAttempt] = useState(0);
 
     useEffect(() => {
         const controller = new AbortController();
-        fetchDashboardData(controller.signal)
+        fetchDashboardData(token, controller.signal)
             .then((data) => {
                 setPayload(data);
                 setDataSource("api");
@@ -81,13 +85,14 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
                 );
             })
             .catch((error: unknown) => {
-                if (error instanceof DOMException && error.name === "AbortError") return;
-                setDataSource("demo");
-                console.warn("Dashboard API unavailable; continuing with local mock data.", error);
+                if (controller.signal.aborted) return;
+                if (error instanceof SignInRequiredError) { signOut(); return; }
+                setDataSource("error");
+                console.warn("Dashboard API unavailable.", error);
             });
 
         return () => controller.abort();
-    }, []);
+    }, [attempt, token, signOut]);
 
     const value = useMemo<DashboardDataContextValue>(() => {
         const inDateRange = (date: string) => {
@@ -104,6 +109,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
 
         return {
             dataSource,
+            costs: payload.costs,
             filters,
             setFilters,
             resetFilters: () => setFilters({
@@ -120,7 +126,8 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
             options: {
                 containerSizes: [...new Set(allRows.map((row) => row.containerSize))].sort(),
                 drivers: [...new Set(allRows.map((row) => row.driver))].sort(),
-                buildings: [...new Set(allRows.map((row) => row.building))].sort(),
+                buildings: [...new Set([...allRows.map((row) => row.building), ...payload.costs.map((row) => row.building)])].sort(),
+                costYears: [...new Set(payload.costs.map((row) => Number(row.month.slice(0, 4))))].sort((a, b) => b - a),
                 // These are the dashboard's supported waste streams. Keep the
                 // filter complete even if a backend row contains an unrecognized label.
                 streams: ["Landfill", "Recycling", "Compost"] satisfies WasteStream[],
@@ -128,7 +135,13 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
         };
     }, [payload, filters, dataSource]);
 
-    return <DashboardDataContext.Provider value={value}>{children}</DashboardDataContext.Provider>;
+    return <DashboardDataContext.Provider value={value}>
+        {dataSource === "loading" ? <p className="trend-empty" role="status">Loading dashboard…</p>
+            : dataSource === "error" ? <div className="trend-empty" role="alert">
+                <p>Couldn’t load the dashboard. Please try again.</p>
+                <button className="ctl" onClick={() => { setDataSource("loading"); setAttempt((value) => value + 1); }}>Try again</button>
+            </div> : children}
+    </DashboardDataContext.Provider>;
 }
 
 export function useDashboardData() {
