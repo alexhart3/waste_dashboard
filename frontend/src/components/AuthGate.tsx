@@ -1,10 +1,10 @@
 "use client";
 
-import { createContext, type FormEvent, type ReactNode, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, type FormEvent, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 import Header from "./Header";
-import { type AdminSession, restoreSession, SESSION_STORAGE_KEY, signIn, SignInRequiredError } from "@/lib/authApi";
+import { type AdminSession, restoreDashboardSession, SESSION_STORAGE_KEY, signIn, SignInRequiredError } from "@/lib/authApi";
 
-type AuthContextValue = { token: string; signOut: () => void };
+type AuthContextValue = { token: string; offline: boolean; retryConnection: () => void; signOut: () => void };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function useAuth() {
@@ -18,8 +18,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     const [status, setStatus] = useState<"checking" | "anonymous" | "authenticated" | "unavailable">("checking");
     const [attempt, setAttempt] = useState(0);
     const [notice, setNotice] = useState("");
+    const memoryToken = useRef<string | null>(null);
 
     const signOut = useCallback(() => {
+        memoryToken.current = null;
         try { localStorage.removeItem(SESSION_STORAGE_KEY); } catch { /* This browser may block storage. */ }
         setSession(null);
         setNotice("");
@@ -29,12 +31,16 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     useEffect(() => {
         const controller = new AbortController();
         async function restore() {
-            let token: string | null = null;
-            try { token = localStorage.getItem(SESSION_STORAGE_KEY); } catch { return null; }
-            return token ? restoreSession(token, controller.signal) : null;
+            let token = memoryToken.current;
+            try { token = localStorage.getItem(SESSION_STORAGE_KEY) ?? token; } catch { /* Use this visit's session. */ }
+            return token ? restoreDashboardSession(token, controller.signal) : null;
         }
         restore().then((saved) => {
             if (controller.signal.aborted) return;
+            if (saved) {
+                memoryToken.current = saved.token;
+                try { localStorage.setItem(SESSION_STORAGE_KEY, saved.token); } catch { /* Storage may be blocked. */ }
+            }
             setSession(saved);
             setStatus(saved ? "authenticated" : "anonymous");
         }).catch((error: unknown) => {
@@ -53,6 +59,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     useEffect(() => {
         const sync = (event: StorageEvent) => {
             if (event.key !== SESSION_STORAGE_KEY && event.key !== null) return;
+            memoryToken.current = null;
             setSession(null);
             setStatus("checking");
             setAttempt((value) => value + 1);
@@ -75,6 +82,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     }, [session, signOut]);
 
     function acceptSession(next: AdminSession) {
+        memoryToken.current = next.token;
         let storageNotice = "";
         try { localStorage.setItem(SESSION_STORAGE_KEY, next.token); }
         catch { storageNotice = "Your browser couldn’t save your sign-in. You’re signed in for this visit."; }
@@ -84,7 +92,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     }
 
     if (status === "authenticated" && session) {
-        return <AuthContext.Provider value={{ token: session.token, signOut }}>
+        return <AuthContext.Provider value={{ token: session.token, offline: !!session.offline, signOut,
+            retryConnection: () => { setStatus("checking"); setAttempt((value) => value + 1); } }}>
             <Header username={session.username} onSignOut={signOut} />
             {notice && <p className="auth-notice" role="status">{notice}</p>}
             {children}
@@ -95,12 +104,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         <Header />
         <main className="auth-page">
             {status === "checking" ? <p role="status" className="auth-checking">Checking your sign-in…</p>
-                : status === "unavailable" ? <section className="auth-panel" aria-labelledby="auth-unavailable">
-                    <h2 id="auth-unavailable">Couldn’t connect</h2>
-                    <p>Your saved sign-in couldn’t be checked. Try again when the dashboard is available.</p>
-                    <button className="auth-submit" onClick={() => { setStatus("checking"); setAttempt((value) => value + 1); }}>Try again</button>
-                    <button className="auth-text-button" onClick={signOut}>Use a different sign-in</button>
-                </section>
+                : status === "unavailable" ? <SignInForm notice="Server offline. Sign in with the offline admin account to open the dashboard." onSuccess={acceptSession} />
                     : <SignInForm notice={notice} onSuccess={acceptSession} />}
         </main>
     </>;

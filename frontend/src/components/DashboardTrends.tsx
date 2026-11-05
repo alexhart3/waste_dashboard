@@ -29,12 +29,12 @@ function PickupTrend() {
 }
 
 function CampusCosts() {
-    const { filters, options, costs } = useDashboardData();
+    const { filters, options, costs, dataSource } = useDashboardData();
     const [selectedYear, setYear] = useState<number | null>(null);
     const year = selectedYear ?? options.costYears[0] ?? 0;
     const points = monthlyCosts(costs, year, filters.building);
     const total = points.reduce((sum, point) => sum + (point.values[0] ?? 0), 0);
-    return <ChartCard title="Monthly collection costs" subtitle={`${filters.building || "Campus total"} · ${formatChartValue(total, "currency")} recorded total`} right={
+    return <ChartCard title="Monthly collection costs" subtitle={`${filters.building || "Campus total"} · ${dataSource === "api" ? `${formatChartValue(total, "currency")} recorded total` : "Data unavailable"}`} right={
         <div className="card-tools">
             <div className="fgroup"><label className="lbl" htmlFor="cost-year">Year</label><select id="cost-year" className="ctl" value={year} disabled={!options.costYears.length} onChange={(event) => setYear(Number(event.target.value))}>
                 {!options.costYears.length && <option value={0}>No years</option>}
@@ -98,7 +98,8 @@ function ContaminationComposition() {
 }
 
 function EmptyChart({ message = "No pickups match these filters." }: { message?: string }) {
-    return <p className="trend-empty">{message}</p>;
+    const { dataSource } = useDashboardData();
+    return <p className="trend-empty">{dataSource === "error" ? "Data unavailable while the server is offline." : message}</p>;
 }
 
 export default function DashboardTrends() {

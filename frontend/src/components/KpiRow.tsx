@@ -5,7 +5,7 @@ import KpiCard from "@/components/KpiCard";
 import { useDashboardData } from "@/components/DashboardDataProvider";
 
 export default function KpiRow() {
-    const { filteredPickups, filteredSchedule } = useDashboardData();
+    const { filteredPickups, filteredSchedule, dataSource } = useDashboardData();
     const [now, setNow] = useState<number | null>(null);
 
     useEffect(() => {
@@ -36,38 +36,39 @@ export default function KpiRow() {
         ? Math.round((missed / dueSchedule.length) * 100)
         : 0;
 
+    const available = dataSource === "api";
     return (
         <section className="kpis" aria-label="Pickup summary">
             <KpiCard
                 label="Total pickups"
-                value={String(filteredPickups.length)}
-                sub={`of ${filteredSchedule.length} scheduled services`}
+                value={available ? String(filteredPickups.length) : "—"}
+                sub={available ? `of ${filteredSchedule.length} scheduled services` : "Server offline"}
                 color="var(--accent)"
             />
             <KpiCard
                 label="Total missed"
-                value={String(missed)}
-                sub={`${missedRate}% of due scheduled services`}
+                value={available ? String(missed) : "—"}
+                sub={available ? `${missedRate}% of due scheduled services` : "Server offline"}
                 color="var(--crit)"
             />
             <KpiCard
                 label="Under 50% full"
-                value={String(underHalf)}
-                sub={`${fullnessValues.length ? Math.round((underHalf / fullnessValues.length) * 100) : 0}% of pickups with fullness recorded`}
+                value={available ? String(underHalf) : "—"}
+                sub={available ? `${fullnessValues.length ? Math.round((underHalf / fullnessValues.length) * 100) : 0}% of pickups with fullness recorded` : "Server offline"}
                 color="var(--warn)"
             />
             <KpiCard
                 label="Avg fullness"
-                value={String(averageFullness)}
-                unit="%"
-                sub="of pickups with fullness recorded"
+                value={available ? String(averageFullness) : "—"}
+                unit={available ? "%" : undefined}
+                sub={available ? "of pickups with fullness recorded" : "Server offline"}
                 color="var(--ink-2)"
             />
             <KpiCard
                 label="Contamination"
-                value={String(contaminationRate)}
-                unit="%"
-                sub={`${contaminated} contaminated pickups`}
+                value={available ? String(contaminationRate) : "—"}
+                unit={available ? "%" : undefined}
+                sub={available ? `${contaminated} contaminated pickups` : "Server offline"}
                 color="var(--serious)"
             />
         </section>

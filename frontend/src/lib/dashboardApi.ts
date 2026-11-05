@@ -1,7 +1,7 @@
 import type { DashboardPayload } from "@/types/dashboard";
 import type { WasteStream } from "@/types/pickup";
 
-import { API_BASE_URL, SignInRequiredError } from "./authApi";
+import { fetchBackend, SignInRequiredError } from "./authApi";
 
 function normalizeStream(stream: unknown, binId: unknown): WasteStream | null {
     const label = typeof stream === "string" ? stream.trim().toLowerCase() : "";
@@ -35,7 +35,7 @@ function normalizePayloadStreams(payload: DashboardPayload): DashboardPayload {
 }
 
 export async function fetchDashboardData(token: string, signal?: AbortSignal): Promise<DashboardPayload> {
-    const response = await fetch(`${API_BASE_URL}/dashboard/`, {
+    const response = await fetchBackend("/dashboard/", {
         signal,
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",

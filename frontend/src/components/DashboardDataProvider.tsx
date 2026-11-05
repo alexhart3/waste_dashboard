@@ -58,13 +58,14 @@ function matchesDetails(
 }
 
 export function DashboardDataProvider({ children }: { children: ReactNode }) {
-    const { token, signOut } = useAuth();
+    const { token, offline, retryConnection, signOut } = useAuth();
     const [payload, setPayload] = useState<DashboardPayload>(emptyPayload);
-    const [dataSource, setDataSource] = useState<"loading" | "api" | "error">("loading");
+    const [dataSource, setDataSource] = useState<"loading" | "api" | "error">(offline ? "error" : "loading");
     const [filters, setFilters] = useState(defaultFilters);
     const [attempt, setAttempt] = useState(0);
 
     useEffect(() => {
+        if (offline) return;
         const controller = new AbortController();
         fetchDashboardData(token, controller.signal)
             .then((data) => {
@@ -92,7 +93,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
             });
 
         return () => controller.abort();
-    }, [attempt, token, signOut]);
+    }, [attempt, token, offline, signOut]);
 
     const value = useMemo<DashboardDataContextValue>(() => {
         const inDateRange = (date: string) => {
@@ -137,10 +138,16 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
 
     return <DashboardDataContext.Provider value={value}>
         {dataSource === "loading" ? <p className="trend-empty" role="status">Loading dashboard…</p>
-            : dataSource === "error" ? <div className="trend-empty" role="alert">
-                <p>Couldn’t load the dashboard. Please try again.</p>
-                <button className="ctl" onClick={() => { setDataSource("loading"); setAttempt((value) => value + 1); }}>Try again</button>
-            </div> : children}
+            : <>
+                {dataSource === "error" && <div className="server-offline" role="status">
+                    <p><strong>Server offline</strong> — Collection data is unavailable. Try again when the server is running.</p>
+                    <button className="ctl" onClick={() => {
+                        if (offline) { retryConnection(); return; }
+                        setDataSource("loading"); setAttempt((value) => value + 1);
+                    }}>Try again</button>
+                </div>}
+                {children}
+            </>}
     </DashboardDataContext.Provider>;
 }
 

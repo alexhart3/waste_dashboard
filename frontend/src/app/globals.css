@@ -891,6 +891,8 @@ tbody tr:hover td {
 .auth-error { color: var(--crit); margin: 0 0 16px; }
 .auth-panel > .auth-notice { margin-top: 16px; }
 .auth-notice, .auth-checking { color: var(--ink-2); }
+.server-offline { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 24px; color: var(--ink); background: var(--surface); border-bottom: 1px solid var(--line); }
+.server-offline p { margin: 0; flex: 1 1 240px; }
 .auth-panel > .auth-submit { margin-top: 24px; }
 .auth-text-button { display: block; margin: 12px auto 0; padding: 10px; min-height: 44px; background: transparent; border: 0; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .account-menu { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--ink-2); font-size: 13px; }
