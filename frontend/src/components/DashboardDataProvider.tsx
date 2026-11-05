@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { createDemoData } from "@/lib/demoData";
 import { fetchDashboardData } from "@/lib/dashboardApi";
 import { CollectionCostRecord, DashboardPayload, ScheduleRecord } from "@/types/dashboard";
 import { PickupRecord, WasteStream } from "@/types/pickup";
@@ -29,7 +30,7 @@ const defaultFilters: DashboardFilters = {
 };
 
 type DashboardDataContextValue = {
-    dataSource: "loading" | "api" | "error";
+    dataSource: "loading" | "api" | "demo" | "error";
     filters: DashboardFilters;
     setFilters: (filters: DashboardFilters) => void;
     resetFilters: () => void;
@@ -58,14 +59,17 @@ function matchesDetails(
 }
 
 export function DashboardDataProvider({ children }: { children: ReactNode }) {
-    const { token, offline, retryConnection, signOut } = useAuth();
-    const [payload, setPayload] = useState<DashboardPayload>(emptyPayload);
-    const [dataSource, setDataSource] = useState<"loading" | "api" | "error">(offline ? "error" : "loading");
-    const [filters, setFilters] = useState(defaultFilters);
+    const { token, demoMode, signOut } = useAuth();
+    const [payload, setPayload] = useState<DashboardPayload>(() => demoMode ? createDemoData() : emptyPayload);
+    const [dataSource, setDataSource] = useState<"loading" | "api" | "demo" | "error">(demoMode ? "demo" : "loading");
+    const [filters, setFilters] = useState(() => {
+        const dates = payload.schedule.map((row) => dateOf(row.scheduledAt)).sort();
+        return { ...defaultFilters, startDate: dates[0] ?? "", endDate: dates.at(-1) ?? "" };
+    });
     const [attempt, setAttempt] = useState(0);
 
     useEffect(() => {
-        if (offline) return;
+        if (demoMode) return;
         const controller = new AbortController();
         fetchDashboardData(token, controller.signal)
             .then((data) => {
@@ -93,7 +97,7 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
             });
 
         return () => controller.abort();
-    }, [attempt, token, offline, signOut]);
+    }, [attempt, token, demoMode, signOut]);
 
     const value = useMemo<DashboardDataContextValue>(() => {
         const inDateRange = (date: string) => {
@@ -142,7 +146,6 @@ export function DashboardDataProvider({ children }: { children: ReactNode }) {
                 {dataSource === "error" && <div className="server-offline" role="status">
                     <p><strong>Server offline</strong> — Collection data is unavailable. Try again when the server is running.</p>
                     <button className="ctl" onClick={() => {
-                        if (offline) { retryConnection(); return; }
                         setDataSource("loading"); setAttempt((value) => value + 1);
                     }}>Try again</button>
                 </div>}

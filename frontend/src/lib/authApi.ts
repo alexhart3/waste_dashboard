@@ -1,7 +1,9 @@
 export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
 export const SESSION_STORAGE_KEY = "waste-dashboard-session";
-export type AdminSession = { token: string; username: string; expiresAt: number; offline?: boolean };
-const OFFLINE_PREFIX = "offline-admin:";
+export type AdminSession = { token: string; username: string; expiresAt: number; demo?: boolean };
+export const DEMO_MODE_STORAGE_KEY = "waste-dashboard-demo-mode";
+export const DEMO_SESSION_STORAGE_KEY = "waste-dashboard-demo-session";
+const DEMO_PREFIX = "demo-admin:";
 const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 
 export class SignInRequiredError extends Error {}
@@ -23,31 +25,21 @@ export async function fetchBackend(path: string, options: RequestInit = {}): Pro
 }
 
 export async function signIn(username: string, password: string, signal?: AbortSignal): Promise<AdminSession> {
-    let response: Response;
-    try {
-        response = await fetchBackend("/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username, password }),
-            cache: "no-store",
-            signal,
-        });
-    } catch (error) {
-        if (!(error instanceof ServerOfflineError)) throw error;
-        if (username !== "admin" || password !== "admin123") {
-            throw new Error("Server offline. Use the offline admin username and password.");
-        }
-        const expiresAt = Date.now() + SESSION_MS;
-        return { token: `${OFFLINE_PREFIX}${expiresAt}`, username: "admin", expiresAt, offline: true };
-    }
+    const response = await fetchBackend("/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+        cache: "no-store",
+        signal,
+    });
     if (response.status === 401) throw new SignInRequiredError("Incorrect username or password. Please try again.");
     if (!response.ok) throw new Error("Couldn’t sign in. Please try again in a moment.");
     return response.json();
 }
 
 export async function restoreSession(token: string, signal: AbortSignal): Promise<AdminSession> {
-    // A local offline marker is never a backend authorization token.
-    if (token.startsWith(OFFLINE_PREFIX)) throw new SignInRequiredError("Please sign in to load server data.");
+    // Demo and legacy offline markers are never backend authorization tokens.
+    if (token.startsWith(DEMO_PREFIX) || token.startsWith("offline-admin:")) throw new SignInRequiredError("Please sign in to load server data.");
     const response = await fetchBackend("/auth/session", {
         headers: { Authorization: `Bearer ${token}` }, signal, cache: "no-store",
     });
@@ -56,13 +48,18 @@ export async function restoreSession(token: string, signal: AbortSignal): Promis
     return { ...await response.json(), token };
 }
 
-export async function restoreDashboardSession(token: string, signal: AbortSignal): Promise<AdminSession> {
-    if (!token.startsWith(OFFLINE_PREFIX)) return restoreSession(token, signal);
-    const expiresAt = Number(token.slice(OFFLINE_PREFIX.length));
-    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now() || expiresAt > Date.now() + SESSION_MS) {
-        throw new SignInRequiredError("Your session has ended. Please sign in again.");
+export function signInDemo(username: string, password: string): AdminSession {
+    if (username !== "admin" || password !== "admin123") {
+        throw new SignInRequiredError("Incorrect username or password. Please try again.");
     }
-    const session = await signIn("admin", "admin123", signal);
-    // Retrying while offline must not extend the original local session.
-    return session.offline ? { ...session, token, expiresAt } : session;
+    const expiresAt = Date.now() + SESSION_MS;
+    return { token: `${DEMO_PREFIX}${expiresAt}`, username: "admin", expiresAt, demo: true };
+}
+
+export function restoreDemoSession(token: string): AdminSession {
+    const expiresAt = Number(token.slice(DEMO_PREFIX.length));
+    if (!token.startsWith(DEMO_PREFIX) || !Number.isFinite(expiresAt) || expiresAt <= Date.now() || expiresAt > Date.now() + SESSION_MS) {
+        throw new SignInRequiredError("Your demo session has ended. Please sign in again.");
+    }
+    return { token, username: "admin", expiresAt, demo: true };
 }

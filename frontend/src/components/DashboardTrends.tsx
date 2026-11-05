@@ -34,7 +34,7 @@ function CampusCosts() {
     const year = selectedYear ?? options.costYears[0] ?? 0;
     const points = monthlyCosts(costs, year, filters.building);
     const total = points.reduce((sum, point) => sum + (point.values[0] ?? 0), 0);
-    return <ChartCard title="Monthly collection costs" subtitle={`${filters.building || "Campus total"} · ${dataSource === "api" ? `${formatChartValue(total, "currency")} recorded total` : "Data unavailable"}`} right={
+    return <ChartCard title="Monthly collection costs" subtitle={`${filters.building || "Campus total"} · ${(dataSource === "api" || dataSource === "demo") ? `${formatChartValue(total, "currency")} recorded total` : "Data unavailable"}`} right={
         <div className="card-tools">
             <div className="fgroup"><label className="lbl" htmlFor="cost-year">Year</label><select id="cost-year" className="ctl" value={year} disabled={!options.costYears.length} onChange={(event) => setYear(Number(event.target.value))}>
                 {!options.costYears.length && <option value={0}>No years</option>}

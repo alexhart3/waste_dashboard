@@ -36,7 +36,7 @@ export default function KpiRow() {
         ? Math.round((missed / dueSchedule.length) * 100)
         : 0;
 
-    const available = dataSource === "api";
+    const available = (dataSource === "api" || dataSource === "demo");
     return (
         <section className="kpis" aria-label="Pickup summary">
             <KpiCard

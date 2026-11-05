@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "./AuthGate";
 import { useDashboardData } from "./DashboardDataProvider";
-import { restoreSession, SignInRequiredError } from "@/lib/authApi";
+import { restoreSession, restoreDemoSession, SignInRequiredError } from "@/lib/authApi";
 import { pickupExportFilename, pickupsCsv } from "@/lib/exportCsv";
 
 export default function ExportButton() {
     const { filteredPickups, filters } = useDashboardData();
-    const { token, signOut } = useAuth();
+    const { token, demoMode, signOut } = useAuth();
     const [busy, setBusy] = useState(false);
     const [notice, setNotice] = useState({ message: "", selection: "" });
     const selection = JSON.stringify(filters);
@@ -23,12 +23,13 @@ export default function ExportButton() {
         setBusy(true);
         setNotice({ message: "", selection });
         try {
-            await restoreSession(token, controller.signal);
+            if (demoMode) restoreDemoSession(token);
+            else await restoreSession(token, controller.signal);
             if (controller.signal.aborted) return;
             const url = URL.createObjectURL(new Blob([pickupsCsv(filteredPickups)], { type: "text/csv;charset=utf-8" }));
             const link = document.createElement("a");
             link.href = url;
-            link.download = pickupExportFilename(filters.startDate, filters.endDate, filters.building);
+            link.download = (demoMode ? "demo-" : "") + pickupExportFilename(filters.startDate, filters.endDate, filters.building);
             document.body.appendChild(link);
             link.click();
             link.remove();

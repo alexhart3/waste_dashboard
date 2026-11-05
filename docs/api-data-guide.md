@@ -1,8 +1,8 @@
 # Dashboard data guide
 
-All six charts, summary cards, and the records table read Supabase through
-FastAPI's `GET /dashboard/`. The browser no longer generates costs or assigns
-contaminant categories, and does not fall back to local mock records on failure.
+In live mode, all six charts, summary cards, and the records table read Supabase
+through FastAPI's `GET /dashboard/`. Offline demo mode is an explicit frontend
+option with local sample records; API failures never enable it automatically.
 
 ## Shared administrator sign-in
 
@@ -22,18 +22,20 @@ in this change.
   sign-in. Expired/rejected sessions return to sign-in automatically.
 - If browser storage is blocked, sign-in works for the current visit and a
   short message explains that it could not be remembered.
-- When the backend cannot be reached (including an eight-second timeout or
-  server error), `admin` / `admin123` can open the dashboard in offline mode.
-  It shows **Server offline**, empty charts, and unavailable summary values.
-  No mock records or database data are cached in the browser. CSV export is
-  disabled because there are no records to export.
-- Offline access is a frontend convenience, not API authorization. Its local
-  marker lasts 30 days and is never sent as a Bearer token. Reloading or choosing
-  **Try again** attempts a real backend login; a successful login loads database
-  records. A server rejection never falls back to offline mode. If a saved online
-  session cannot be checked, the user can sign in with the offline credentials.
-  The offline credentials are public frontend code; backend data remains protected
-  by the existing signed-token checks.
+- The bottom-right **Offline demo mode** toggle is available on the login page,
+  dashboard, and records page. It remembers the chosen mode in local storage.
+- With demo mode on, `admin` / `admin123` signs in entirely in the frontend.
+  Login, session restore, charts, filters, records, and CSV export make no backend
+  requests. `frontend/src/lib/demoData.ts` supplies repeatable sample records for
+  six locations, three waste streams, September 7–November 1, 2026, and monthly
+  costs for 2024–October 2026. The charts use their usual calculations.
+- Demo sessions last 30 days and are stored separately from live sessions. Turning
+  the toggle off restores the normal backend login/validation flow. Switching modes
+  cancels in-flight requests and clears the mounted data and filters. Sign-out clears
+  the session for the selected mode. No database records are cached locally.
+- Demo credentials and data are public frontend code. Demo markers never authorize
+  backend requests. Live mode still shows **Server offline** if the API is unavailable;
+  users can choose the demo toggle instead of waiting for the server.
 - Sessions are stateless: sign-out clears this browser's token, rather than
   revoking copies of a token on the server. Changing the admin credentials or
   signing secret invalidates all previously issued sessions.
@@ -72,8 +74,9 @@ either the dashboard or records page. It exports all matching pickup records,
 newest first, using the selected dates, location, waste stream, driver, and
 container size. The button is disabled when no pickups match.
 
-The export checks the administrator session with FastAPI before creating the
-download. Signing out during that check cancels it. Invalid/expired sessions
+In live mode, export checks the administrator session with FastAPI before creating
+the download. In demo mode, it checks the local demo session and exports the filtered
+sample records without a backend request; filenames start with `demo-`. Signing out during that check cancels it. Invalid/expired sessions
 return to sign-in; connection failures show a retry message without exporting.
 
 CSV columns: pickup ID, collection timestamp (explicitly UTC), driver, location,
